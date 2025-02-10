@@ -10,10 +10,12 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+ISO_FORMAT = "yyyy-MM-ddTHH:mm:ss±hh:mm (or Z for UTC)"
+
 class CreateEventInput(BaseModel):
     title: str = Field(..., description="The title of the event")
-    start_time: str = Field(..., description="Start time of the event")
-    end_time: str = Field(..., description="End time of the event")
+    start_time: str = Field(..., description=f"Start time of the event in ISO format {ISO_FORMAT}")
+    end_time: str = Field(..., description=f"End time of the event in ISO format {ISO_FORMAT}")
 
 class SearchEventsInput(BaseModel):
     title: str = Field(..., description="The title of the event to retrieve")
@@ -36,20 +38,25 @@ class EventTools:
             return str(events)
 
     def create_event(self, session: Session, metrics_logger: MetricsLogger, title: str, start_time: str, end_time: str) -> str:
-        with metrics_logger.instrumenter("EventTools.create_event"):
-            start_datetime = datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S")
-            end_datetime = datetime.strptime(end_time, "%Y-%m-%dT%H:%M:%S")
+        try:
+            with metrics_logger.instrumenter("EventTools.create_event"):
+                # Try parsing with timezone offset
+                start_datetime = datetime.fromisoformat(start_time)
+                end_datetime = datetime.fromisoformat(end_time)
 
-            event = Event(title=title, start_time=start_datetime, end_time=end_datetime)
-            session.add(event)
+                event = Event(title=title, start_time=start_datetime, end_time=end_datetime)
+                session.add(event)
 
-            alarm = Alarm(trigger_time=start_datetime, description=f"Alarm for event with title '{title}' that is now starting.")
-            event.alarm = alarm
-            session.add(alarm)
+                alarm = Alarm(trigger_time=start_datetime, description=f"Alarm for event with title '{title}' that is now starting.")
+                event.alarm = alarm
+                session.add(alarm)
 
-            logger.info(f"Event {title} created successfully")
-
-            return f"Event {title} created successfully"
+                logger.info(f"Event {title} created successfully with start time {start_datetime} and end time {end_datetime}")
+                return f"Event '{title}' created successfully"
+        except ValueError as e:
+            error_msg = f"Failed to create event: Invalid datetime format. Please use ISO format {ISO_FORMAT}"
+            logger.error(f"{error_msg}. Error: {e}")
+            return error_msg
 
     def list_events(self, session: Session, metrics_logger: MetricsLogger, page: int = 1, per_page: int = 5) -> str:
         with metrics_logger.instrumenter("EventTools.list_events"):

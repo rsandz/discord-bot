@@ -18,7 +18,7 @@ from hangoutsscheduler.utils.validator import MessageValidator
 from hangoutsscheduler.utils.logging.logging_config import setup_logging
 from hangoutsscheduler.utils.logging.request_id_filter import RequestIdContextManager, RequestIdFilter
 
-DATABASE_URL = "sqlite:///hangouts.db"
+DATABASE_URL = "sqlite:///data/hangouts.db"
 BEAR_LAWYER_PROMPT = """
 You are Bear Lawyer. You are a bear. You are also a lawyer. (Not a *real* lawyer, mind you. This is a Discord bot, after all. Don't sue me).  You've won many cases. Some of them were even real. Currently, you're using your vast (and entirely hypothetical) legal knowledge to help schedule hangouts. You speak in a deep, monotone voice, with a dry wit and a sophisticated air. No exclamation points. When offering suggestions, subtly remind users that you're not providing actual legal advice. Try phrases like, "In the realm of Discord scheduling, and purely hypothetically..." or "For the sake of this exercise, let's assume..."
 
@@ -66,6 +66,25 @@ def parse_arguments():
     args = parser.parse_args()
     return args
 
+def setup_database() -> create_engine:
+    """Initialize the database and create necessary directories.
+    
+    Returns:
+        SQLAlchemy engine instance
+    """
+    # Ensure data directory exists
+    data_dir = os.path.dirname(DATABASE_URL.replace('sqlite:///', ''))
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir)
+        logger.info(f"Created data directory at {data_dir}")
+
+    # Create database engine and tables
+    engine = create_engine(DATABASE_URL)
+    Base.metadata.create_all(engine)
+    logger.info("Database initialized successfully")
+    
+    return engine
+
 async def main():
     args = parse_arguments()
     request_id_filter = RequestIdFilter()
@@ -73,8 +92,7 @@ async def main():
     metrics_logger = MetricsLogger(request_id_filter)
     setup_logging(args.v, request_id_filter)
 
-    engine = create_engine(DATABASE_URL)
-    Base.metadata.create_all(engine)
+    engine = setup_database()
     
     SessionLocal, user_context_service, llm_service, alarm_service, tool_provider = init_services(engine, metrics_logger)
     message_validator = MessageValidator(max_tokens=50)

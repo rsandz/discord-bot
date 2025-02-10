@@ -6,4 +6,5 @@ services:
     env_file: ./.env
     volumes:
       - ./logs:/app/logs
+      - ./data:/app/data
     command: poetry run python -m hangoutsscheduler.main --discord 

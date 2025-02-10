@@ -8,13 +8,15 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+ISO_FORMAT = "yyyy-MM-ddTHH:mm:ss±hh:mm (or Z for UTC)"
+
 class CreateAlarmInput(BaseModel):
-    trigger_time: str = Field(..., description="When the alarm should trigger ISO format (YYYY-MM-DDTHH:MM:SS)")
+    trigger_time: str = Field(..., description=f"When the alarm should trigger in ISO format {ISO_FORMAT}")
     description: str = Field(..., description="Description/instructions for the alarm. It should be actionable by you when the alarm triggers.")
 
 class UpdateAlarmInput(BaseModel):
     alarm_id: int = Field(..., description="ID of the alarm to update")
-    trigger_time: Optional[str] = Field(None, description="New trigger time ISO format (YYYY-MM-DDTHH:MM:SS)")
+    trigger_time: Optional[str] = Field(None, description=f"New trigger time in ISO format {ISO_FORMAT}")
     description: Optional[str] = Field(None, description="New description")
 
 class DeleteAlarmInput(BaseModel):
@@ -34,7 +36,7 @@ class AlarmTools:
                 return f"Alarm created with ID {alarm.alarm_id}"
             except ValueError as e:
                 logger.error(f"Failed to parse trigger time: {e}")
-                return f"Failed to create alarm: Invalid time format. Use ISO format (YYYY-MM-DDTHH:MM:SS)"
+                return f"Failed to create alarm: Invalid time format. Use ISO format {ISO_FORMAT}"
 
     def list_alarms(self, session: Session, metrics_logger: MetricsLogger, include_past: bool = False) -> str:
         with metrics_logger.instrumenter("AlarmTools.list_alarms"):
