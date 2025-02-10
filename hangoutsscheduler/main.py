@@ -66,7 +66,7 @@ def parse_arguments():
     args = parser.parse_args()
     return args
 
-def setup_database() -> create_engine:
+def setup_database():
     """Initialize the database and create necessary directories.
     
     Returns:
