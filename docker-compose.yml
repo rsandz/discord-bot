@@ -1,0 +1,9 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    env_file: ./.env
+    volumes:
+      - ./logs:/app/logs
+    command: poetry run python -m hangoutsscheduler.main --discord 
