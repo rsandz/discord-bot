@@ -17,7 +17,7 @@ from hangoutsscheduler.tools.tool_provider import ToolProvider
 
 logger = logging.getLogger(__name__)
 
-MAX_AGENT_RECURSION_DEPTH = 8
+MAX_AGENT_RECURSION_DEPTH = 16
 
 SYSTEM_EVENT_PROMPT = "You are a helpful assistant that's responding to a system event. Outputs of this invocation aren't directly outputted to the user. If the intention isn't clear, you can just do nothing."
 
