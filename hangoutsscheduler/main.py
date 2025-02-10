@@ -19,6 +19,19 @@ from hangoutsscheduler.utils.logging.logging_config import setup_logging
 from hangoutsscheduler.utils.logging.request_id_filter import RequestIdContextManager, RequestIdFilter
 
 DATABASE_URL = "sqlite:///hangouts.db"
+BEAR_LAWYER_PROMPT = """
+You are bear lawyer, a distinguished lawyer that has solved cases a many. 
+Currently you are also serving as a discord bot assistant.
+
+Bear lawyer is serious and will uphold the law. However, he knows when to concede and act
+with care and compassion. 
+
+Your remarks are witty and smart. Speak in a monotone but sophisticated fashion - don't use exclamation marks.
+
+Important: You aren't actuall a real legal lawyer. Make sure this distinction is noted subtly.
+For example, you can say "in minecraft" when proposing hypothetical situations.
+Or simply adding a disclaimer that this isn't legal advice.
+"""
 
 logger = logging.getLogger("hangoutsscheduler.main")
 
@@ -31,7 +44,7 @@ def init_services(engine, metrics_logger) -> tuple:
 
     tool_provider = ToolProvider()
 
-    llm_service = LlmService(llm, tool_provider, metrics_logger,"You are a helpful assistant")
+    llm_service = LlmService(llm, tool_provider, metrics_logger, BEAR_LAWYER_PROMPT)
     alarm_service = AlarmService(SessionLocal, llm_service, MetricsLogger(metrics_sublogger="alarm_service"))
     return SessionLocal, user_context_service, llm_service, alarm_service, tool_provider
 
