@@ -1,10 +1,11 @@
-import asyncio
 import logging
 import discord
 from discord import Intents
 from sqlalchemy.orm import Session
-from typing import Callable
+from typing import Callable, List
 
+from hangoutsscheduler.constants import AI_MESSAGE_TYPE, USER_MESSAGE_TYPE
+from hangoutsscheduler.models.message_context import ChatMessage, MessageContextChatHistory
 from hangoutsscheduler.services.llm_service import LlmService
 from hangoutsscheduler.services.user_context_service import UserContextService
 from hangoutsscheduler.utils.logging.metrics import MetricsLogger
@@ -15,7 +16,11 @@ logger = logging.getLogger(__name__)
 
 class DiscordIntegration(discord.Client):
     """Discord bot integration that responds to mentions and interacts with the LLM."""
-    
+
+    MAX_LLM_CHANNEL_MESSAGE_CONTEXT = 10
+    CHANNEL_CHAT_HISTORY_NAME = "Discord Channel"
+    CHANNEL_CHAT_HISTORY_DESCRIPTION = "Chat history of the Discord channel"
+
     def __init__(
         self,
         session_factory: Callable[[], Session],
@@ -55,6 +60,9 @@ class DiscordIntegration(discord.Client):
     
     async def on_message(self, message: discord.Message):
         """Handle incoming messages"""
+        if not self.user:
+            raise Exception("Discord user ID is not set")
+
         # Ignore messages from the bot itself
         if message.author == self.user:
             return
@@ -62,7 +70,19 @@ class DiscordIntegration(discord.Client):
         # Only respond to mentions
         if not message.mentions or self.user not in message.mentions:
             return
-            
+
+        if isinstance(message.channel, (discord.DMChannel, discord.PartialMessageable)):
+            return
+
+        channel_name = str(message.channel.name)
+        logger.info(f"Discord bot responding to mention in channel {channel_name}: {message.content}")
+        channel_history = message.channel.history(limit=self.MAX_LLM_CHANNEL_MESSAGE_CONTEXT)
+        transformed_channel_history = MessageContextChatHistory(
+            name=self.CHANNEL_CHAT_HISTORY_NAME, 
+            description=self.CHANNEL_CHAT_HISTORY_DESCRIPTION, 
+            messages=self.transform_channel_history([message async for message in channel_history])
+        )
+
         # Remove the mention from the message
         content = message.content.replace(f'<@{self.user.id}>', '').strip()
         if not content:
@@ -75,30 +95,34 @@ class DiscordIntegration(discord.Client):
                     # Get user-specific context
                     user_id = str(message.author.id)
                     validated_message = self.validator.validate_message(content)
+                    new_chat_message = ChatMessage(type=USER_MESSAGE_TYPE, content=validated_message, datetime=message.created_at, id=str(message.id))
                     message_context = self.user_context_service.resolve_chat_history(
                         session, 
                         user_id,
-                        validated_message
+                        new_chat_message
                     )
+                    message_context.histories.append(transformed_channel_history)
                     
                     # Get LLM response
                     response = await self.llm_service.respond_to_user_message(message_context, session)
+                    response_content = str(response.content)
+                    new_ai_response = ChatMessage(type=AI_MESSAGE_TYPE, content=response_content, datetime=message.created_at, id=str(message.id))
                     
                     # Update context with response
                     self.user_context_service.update_with_llm_response(
                         session,
                         user_id,
-                        response.content
+                        new_ai_response
                     )
                     
                     # Send response, splitting if too long
-                    if len(response.content) > 2000:
+                    if len(response_content) > 2000:
                         # Split into chunks of 2000 chars (Discord's limit)
-                        chunks = [response.content[i:i+2000] for i in range(0, len(response.content), 2000)]
+                        chunks = [response_content[i:i+2000] for i in range(0, len(response_content), 2000)]
                         for chunk in chunks:
                             await message.reply(chunk)
                     else:
-                        await message.reply(response.content)
+                        await message.reply(response_content)
                         
         except Exception as e:
             logger.exception(f"Error processing Discord message: {e}")
@@ -112,3 +136,14 @@ class DiscordIntegration(discord.Client):
         except Exception as e:
             logger.exception(f"Failed to start Discord bot: {e}")
             raise
+
+    def transform_channel_history(self, history: list[discord.Message]) -> list[ChatMessage]:
+        return [
+            ChatMessage(
+                type=AI_MESSAGE_TYPE if message.author == self.user else USER_MESSAGE_TYPE,
+                content=message.content,
+                datetime=message.created_at,
+                id=str(message.id)
+            )
+            for message in history
+        ]

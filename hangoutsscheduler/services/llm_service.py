@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from hangoutsscheduler.constants import USER_MESSAGE_TYPE, SYSTEM_MESSAGE_TYPE, AI_MESSAGE_TYPE
 from hangoutsscheduler.models.event_context import EventContext
-from hangoutsscheduler.models.meesage_context import MessageContext
+from hangoutsscheduler.models.message_context import ChatMessage, MessageContext, MessageContextChatHistory
 from hangoutsscheduler.utils.logging.metrics import Instrumenter, MetricsLogger
 from hangoutsscheduler.tools.tool_provider import ToolProvider
 
@@ -50,19 +50,11 @@ class LlmService():
             message = message_context.message
             logger.info(f"Responding to message: {message}")
 
-            # Include chat history in the prompt
-            history_messages = []
-            for h in message_context.history:
-                if h['type'] == USER_MESSAGE_TYPE:
-                    history_messages.append(HumanMessage(h['content']))
-                elif h['type'] in [AI_MESSAGE_TYPE]:
-                    history_messages.append(AIMessage(h['content']))    
-
             prompt = [
                 SystemMessage(f"Current User: {message_context.username}"),
                 SystemMessage(f"Current Time: {datetime.now().astimezone().isoformat()}"),
                 self.system_message,
-                *history_messages,
+                *self.encode_context_histories(message_context),
                 message
             ]
 
@@ -86,3 +78,35 @@ class LlmService():
         instrumenter.add_metric('tokens_used', token_usage)
 
         return last_message
+
+    def encode_context_histories(self, message_context: MessageContext) -> List[BaseMessage]:
+        logger.info(f"Encoding context histories: {message_context}")
+
+        # Collect all messages from all histories
+        all_messages: list[ChatMessage] = []
+        for chat_history in message_context.histories:
+            all_messages.extend(chat_history.messages)
+        
+        # Deduplicate messages by ID
+        unique_messages: dict[str, ChatMessage] = {}
+        for message in all_messages:
+            if message.id not in unique_messages:
+                unique_messages[message.id] = message
+            else:
+                logger.debug(f"Deduplicate message ID: {message.id}, content: {message.content}")
+        
+        # Sort messages by datetime if available
+        sorted_messages = sorted(
+            unique_messages.values(),
+            key=lambda m: m.datetime if hasattr(m, 'datetime') and m.datetime else datetime.min
+        )
+        
+        # Convert to LangChain message format
+        combined_messages = []
+        for message in sorted_messages:
+            if message.type == USER_MESSAGE_TYPE:
+                combined_messages.append(HumanMessage(message.content))
+            elif message.type == AI_MESSAGE_TYPE:
+                combined_messages.append(AIMessage(message.content))
+        
+        return combined_messages
