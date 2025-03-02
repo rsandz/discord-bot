@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from typing import Any, List
+from typing import Any, List, Sequence
 from langchain.tools import BaseTool
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, HumanMessage
@@ -41,11 +41,11 @@ class LlmService():
             ]
 
             tools = self.tool_provider.get_system_tools(session, self.metrics_logger)
-            last_message = self._invoke_llm(instrumenter, session, prompt, tools) # type: ignore
+            last_message = self._invoke_llm(instrumenter, session, prompt, tools) 
             return last_message
 
 
-    async def respond_to_user_message(self, message_context: MessageContext, session: Session) -> str:
+    async def respond_to_user_message(self, message_context: MessageContext, session: Session) -> AIMessage:
         with self.metrics_logger.instrumenter("LLMService.respond_to_message") as instrumenter:
             message = message_context.message
             logger.info(f"Responding to message: {message}")
@@ -70,14 +70,11 @@ class LlmService():
             last_message = await self._invoke_llm(instrumenter, session, prompt, tools)
             return last_message
 
-    async def _invoke_llm(self, instrumenter: Instrumenter, session: Session, prompt: List[BaseMessage], tools: List[BaseTool]) -> str:
-        if len(tools) > 0:
-            agent = create_react_agent(self.model, tools=tools)
-        else:
-            agent = self.model
+    async def _invoke_llm(self, instrumenter: Instrumenter, session: Session, prompt: Sequence[BaseMessage], tools: List[BaseTool]) -> AIMessage:
+        agent = create_react_agent(self.model, tools=tools)
 
         # Return the response and log token usage
-        response: Any = await agent.ainvoke({"messages": prompt}, {"recursion_limit": MAX_AGENT_RECURSION_DEPTH}) # type: ignore
+        response: dict[str, Any] = await agent.ainvoke({"messages": prompt}, {"recursion_limit": MAX_AGENT_RECURSION_DEPTH}) 
         session.commit()
         
         for message in response["messages"]:
