@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from typing import Any, List, Sequence
+from typing import Any, Callable, List, Sequence
 from langchain.tools import BaseTool
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, HumanMessage
@@ -9,17 +9,9 @@ from langgraph.prebuilt import create_react_agent
 
 from sqlalchemy.orm import Session
 
-from hangoutsscheduler.constants import (
-    USER_MESSAGE_TYPE,
-    SYSTEM_MESSAGE_TYPE,
-    AI_MESSAGE_TYPE,
-)
+from hangoutsscheduler.constants import USER_MESSAGE_TYPE, AI_MESSAGE_TYPE
 from hangoutsscheduler.models.event_context import EventContext
-from hangoutsscheduler.models.message_context import (
-    ChatMessage,
-    MessageContext,
-    MessageContextChatHistory,
-)
+from hangoutsscheduler.models.message_context import ChatMessage, MessageContext
 from hangoutsscheduler.utils.logging.metrics import Instrumenter, MetricsLogger
 from hangoutsscheduler.tools.tool_provider import ToolProvider
 
@@ -29,6 +21,8 @@ MAX_AGENT_RECURSION_DEPTH = 16
 
 SYSTEM_EVENT_PROMPT = "You are a helpful assistant that's responding to a system event. Outputs of this invocation aren't directly outputted to the user. If the intention isn't clear, you can just do nothing."
 
+UserPromptTransformer = Callable[[list[BaseMessage]], list[BaseMessage]]
+
 
 class LlmService:
 
@@ -37,13 +31,14 @@ class LlmService:
         model: BaseChatModel,
         tool_provider: ToolProvider,
         metrics_logger: MetricsLogger,
-        prompt,
+        user_message_base_prompt: str,
+        user_prompts_transformer: Sequence[UserPromptTransformer] = [],
     ):
         self.model: BaseChatModel = model
-        self.system_message = SystemMessage(prompt)
+        self.user_message_base_prompt = SystemMessage(user_message_base_prompt)
         self.tool_provider = tool_provider
-        # Initialize metrics logger
         self.metrics_logger = metrics_logger
+        self.user_prompts_transformer: Sequence[UserPromptTransformer] = []
 
     def respond_to_system_event(self, event_context: EventContext, session: Session):
         with self.metrics_logger.instrumenter(
@@ -66,7 +61,10 @@ class LlmService:
             return last_message
 
     async def respond_to_user_message(
-        self, message_context: MessageContext, session: Session
+        self,
+        message_context: MessageContext,
+        session: Session,
+        additional_transformers: Sequence[UserPromptTransformer] = [],
     ) -> AIMessage:
         with self.metrics_logger.instrumenter(
             "LLMService.respond_to_message"
@@ -74,15 +72,21 @@ class LlmService:
             message = message_context.message
             logger.info(f"Responding to message: {message}")
 
-            prompt = [
+            prompt: Sequence[BaseMessage] = [
                 SystemMessage(f"Current User: {message_context.username}"),
                 SystemMessage(
                     f"Current Time: {datetime.now().astimezone().isoformat()}"
                 ),
-                self.system_message,
+                self.user_message_base_prompt,
                 *self.encode_context_histories(message_context),
-                message,
+                HumanMessage(message),
             ]
+
+            for transformer in (
+                *self.user_prompts_transformer,
+                *additional_transformers,
+            ):
+                prompt = transformer(prompt)
 
             tools = self.tool_provider.get_tools(session, self.metrics_logger)
             last_message = await self._invoke_llm(instrumenter, session, prompt, tools)

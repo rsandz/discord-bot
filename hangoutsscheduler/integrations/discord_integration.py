@@ -1,15 +1,16 @@
 import logging
 import discord
 from discord import Intents
+from langchain_core.messages import SystemMessage
 from sqlalchemy.orm import Session
-from typing import Callable, List
+from typing import Callable, List, Optional
 
 from hangoutsscheduler.constants import AI_MESSAGE_TYPE, USER_MESSAGE_TYPE
 from hangoutsscheduler.models.message_context import (
     ChatMessage,
     MessageContextChatHistory,
 )
-from hangoutsscheduler.services.llm_service import LlmService
+from hangoutsscheduler.services.llm_service import LlmService, UserPromptTransformer
 from hangoutsscheduler.services.user_context_service import UserContextService
 from hangoutsscheduler.utils.logging.metrics import MetricsLogger
 from hangoutsscheduler.utils.logging.request_id_filter import RequestIdContextManager
@@ -93,6 +94,14 @@ class DiscordIntegration(discord.Client):
             ),
         )
 
+        server_name = message.guild.name if message.guild else None
+
+        server_channel_context_prompt_transformer = (
+            self._create_server_channel_context_transformer(channel_name, server_name)
+        )
+
+        # Remove the mention from the message
+        content = message.content.replace(f"<@{self.user.id}>", "").strip()
         # Remove the mention from the message
         content = message.content.replace(f"<@{self.user.id}>", "").strip()
         if not content:
@@ -122,7 +131,11 @@ class DiscordIntegration(discord.Client):
 
                     # Get LLM response
                     response = await self.llm_service.respond_to_user_message(
-                        message_context, session
+                        message_context,
+                        session,
+                        additional_transformers=[
+                            server_channel_context_prompt_transformer
+                        ],
                     )
                     response_content = str(response.content)
                     new_ai_response = ChatMessage(
@@ -180,3 +193,30 @@ class DiscordIntegration(discord.Client):
             )
             for message in history
         ]
+
+    def _create_server_channel_context_transformer(
+        self, channel_name: str, server_name: Optional[str] = None
+    ) -> UserPromptTransformer:
+        """Create a prompt transformer that adds Discord server and channel context.
+
+        Args:
+            channel_name: The name of the channel
+            server_name: The name of the server (optional)
+
+        Returns:
+            A transformer function that adds server and channel context to the prompt
+        """
+        if server_name:
+            return lambda prompt: [
+                SystemMessage(
+                    f"You are responding to a message in Discord Server: {server_name}, Channel: {channel_name}"
+                ),
+                *prompt,
+            ]
+        else:
+            return lambda prompt: [
+                SystemMessage(
+                    f"You are responding to a message in Discord Channel: {channel_name}"
+                ),
+                *prompt,
+            ]
