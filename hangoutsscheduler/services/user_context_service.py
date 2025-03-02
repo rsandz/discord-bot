@@ -44,13 +44,13 @@ class UserContextService:
         self, session: Session, username: str, new_message: ChatMessage
     ) -> MessageContext:
         chat_history = self._get_or_create_chat_history(session, username)
-        self._update_history(chat_history, new_message)
-        session.commit()
         user_chat_history = MessageContextChatHistory(
             name=self.USER_CHAT_HISTORY_NAME,
             description=self.USER_CHAT_HISTORY_DESCRIPTION,
             messages=chat_history.history,
         )
+        self._update_history(chat_history, new_message)
+        session.commit()
         return MessageContext(
             message=new_message.content,
             username=username,
