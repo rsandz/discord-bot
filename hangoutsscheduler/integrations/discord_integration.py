@@ -72,16 +72,27 @@ class DiscordIntegration(discord.Client):
         if message.author == self.user:
             return
 
-        # Only respond to mentions
-        if not message.mentions or self.user not in message.mentions:
+        # Always respond to mentions
+        is_mention = message.mentions and self.user in message.mentions
+
+        # For non-mentions, check if it's a question and if there was a recent interaction
+        is_question = message.content.strip().endswith("?")
+        has_recent_interaction = False
+
+        if not is_mention and is_question:
+            has_recent_interaction = await self._check_recent_interaction(message)
+
+        # Only respond to mentions or questions with recent interactions
+        if not (is_mention or (is_question and has_recent_interaction)):
             return
 
         if isinstance(message.channel, (discord.DMChannel, discord.PartialMessageable)):
             return
 
         channel_name = str(message.channel.name)
+        trigger_type = "mention" if is_mention else "follow-up question"
         logger.info(
-            f"Discord bot responding to mention in channel {channel_name}: {message.content}"
+            f"Discord bot responding to {trigger_type} in channel {channel_name}: {message.content}"
         )
         channel_history = message.channel.history(
             limit=self.MAX_LLM_CHANNEL_MESSAGE_CONTEXT
@@ -100,9 +111,7 @@ class DiscordIntegration(discord.Client):
             self._create_server_channel_context_transformer(channel_name, server_name)
         )
 
-        # Remove the mention from the message
-        content = message.content.replace(f"<@{self.user.id}>", "").strip()
-        # Remove the mention from the message
+        # Remove the mention from the message if present
         content = message.content.replace(f"<@{self.user.id}>", "").strip()
         if not content:
             return
@@ -220,3 +229,29 @@ class DiscordIntegration(discord.Client):
                 ),
                 *prompt,
             ]
+
+    async def _check_recent_interaction(self, message: discord.Message) -> bool:
+        """Check if the user had a recent interaction with the bot.
+
+        This method determines if the bot should respond to a question without being mentioned
+        by checking if the bot responded to the same user within the last 60 seconds.
+
+        Args:
+            message: The current message to check
+
+        Returns:
+            True if there was a recent interaction, False otherwise
+        """
+        # Get recent message history
+        async for prev_msg in message.channel.history(limit=10, before=message):
+            # Check if the bot responded to this user within the last 60 seconds
+            if (
+                prev_msg.author == self.user
+                and (message.created_at - prev_msg.created_at).total_seconds() < 60
+            ):
+                # Find the message the bot was responding to
+                async for user_msg in message.channel.history(limit=5, before=prev_msg):
+                    if user_msg.author == message.author:
+                        return True
+
+        return False
