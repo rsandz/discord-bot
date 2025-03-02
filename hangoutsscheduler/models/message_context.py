@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime as dt
+from datetime import timezone
 from uuid import uuid4
 
 
@@ -9,7 +10,7 @@ class ChatMessage:
 
     type: str
     content: str
-    datetime: dt = field(default_factory=lambda: dt.min)
+    datetime: dt = field(default_factory=lambda: dt.min.replace(tzinfo=timezone.utc))
     id: str = field(default_factory=lambda: str(uuid4()))
 
     def to_dict(self) -> dict:
@@ -27,6 +28,9 @@ class ChatMessage:
         # Convert ISO format datetime string back to datetime object if present
         if data.get("datetime") and isinstance(data["datetime"], str):
             data["datetime"] = dt.fromisoformat(data["datetime"])
+            # Ensure datetime is timezone-aware
+            if data["datetime"].tzinfo is None:
+                data["datetime"] = data["datetime"].replace(tzinfo=timezone.utc)
 
         return cls(**data)
 

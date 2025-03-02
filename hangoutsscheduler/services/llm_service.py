@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+import datetime as dt
 from typing import Any, Callable, List, Sequence
 from langchain.tools import BaseTool
 from langchain_core.language_models import BaseChatModel
@@ -137,11 +138,17 @@ class LlmService:
                 )
 
         # Sort messages by datetime if available
+        # Ensure all datetime objects are timezone-aware before comparison
+        def get_comparable_datetime(msg):
+            if not hasattr(msg, "datetime") or not msg.datetime:
+                return datetime.min.replace(tzinfo=dt.timezone.utc)
+            if msg.datetime.tzinfo is None:  # If datetime is naive
+                return msg.datetime.replace(tzinfo=dt.timezone.utc)
+            return msg.datetime
+
         sorted_messages = sorted(
             unique_messages.values(),
-            key=lambda m: (
-                m.datetime if hasattr(m, "datetime") and m.datetime else datetime.min
-            ),
+            key=lambda m: get_comparable_datetime(m),
         )
 
         # Convert to LangChain message format

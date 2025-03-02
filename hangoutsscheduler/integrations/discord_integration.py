@@ -128,7 +128,9 @@ class DiscordIntegration(discord.Client):
                     message_context = self.user_context_service.resolve_chat_history(
                         session, user_id, new_chat_message
                     )
-                    message_context.histories.append(await self._fetch_channel_history(message))
+                    message_context.histories.append(
+                        await self._fetch_channel_history(message)
+                    )
 
                     response = await self.llm_service.respond_to_user_message(
                         message_context,
@@ -193,21 +195,22 @@ class DiscordIntegration(discord.Client):
             )
             for message in history
         ]
-        
-    async def _fetch_channel_history(self, message: discord.Message) -> MessageContextChatHistory:
+
+    async def _fetch_channel_history(
+        self, message: discord.Message
+    ) -> MessageContextChatHistory:
         """Fetch and transform the channel history for context.
-        
+
         Args:
             message: The current message to fetch history before
-            
+
         Returns:
             A MessageContextChatHistory containing the transformed channel messages
         """
         channel_history = message.channel.history(
-            limit=self.MAX_LLM_CHANNEL_MESSAGE_CONTEXT,
-            before=message
+            limit=self.MAX_LLM_CHANNEL_MESSAGE_CONTEXT, before=message
         )
-        
+
         return MessageContextChatHistory(
             name=self.CHANNEL_CHAT_HISTORY_NAME,
             description=self.CHANNEL_CHAT_HISTORY_DESCRIPTION,
