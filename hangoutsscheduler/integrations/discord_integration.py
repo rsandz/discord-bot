@@ -93,17 +93,6 @@ class DiscordIntegration(discord.Client):
         logger.info(
             f"Discord bot responding to {trigger_type} in channel {channel_name}: {message.content}"
         )
-        channel_history = message.channel.history(
-            limit=self.MAX_LLM_CHANNEL_MESSAGE_CONTEXT
-        )
-        transformed_channel_history = MessageContextChatHistory(
-            name=self.CHANNEL_CHAT_HISTORY_NAME,
-            description=self.CHANNEL_CHAT_HISTORY_DESCRIPTION,
-            messages=self.transform_channel_history(
-                [message async for message in channel_history]
-            ),
-        )
-
         server_name = message.guild.name if message.guild else None
         user_name = message.author.display_name
 
@@ -139,7 +128,7 @@ class DiscordIntegration(discord.Client):
                     message_context = self.user_context_service.resolve_chat_history(
                         session, user_id, new_chat_message
                     )
-                    message_context.histories.append(transformed_channel_history)
+                    message_context.histories.append(await self._fetch_channel_history(message))
 
                     response = await self.llm_service.respond_to_user_message(
                         message_context,
@@ -188,7 +177,7 @@ class DiscordIntegration(discord.Client):
             logger.exception(f"Failed to start Discord bot: {e}")
             raise
 
-    def transform_channel_history(
+    def _transform_channel_history(
         self, history: list[discord.Message]
     ) -> list[ChatMessage]:
         return [
@@ -204,6 +193,28 @@ class DiscordIntegration(discord.Client):
             )
             for message in history
         ]
+        
+    async def _fetch_channel_history(self, message: discord.Message) -> MessageContextChatHistory:
+        """Fetch and transform the channel history for context.
+        
+        Args:
+            message: The current message to fetch history before
+            
+        Returns:
+            A MessageContextChatHistory containing the transformed channel messages
+        """
+        channel_history = message.channel.history(
+            limit=self.MAX_LLM_CHANNEL_MESSAGE_CONTEXT,
+            before=message
+        )
+        
+        return MessageContextChatHistory(
+            name=self.CHANNEL_CHAT_HISTORY_NAME,
+            description=self.CHANNEL_CHAT_HISTORY_DESCRIPTION,
+            messages=self._transform_channel_history(
+                [msg async for msg in channel_history]
+            ),
+        )
 
     def _create_server_channel_context_transformer(
         self, channel_name: str, server_name: Optional[str] = None

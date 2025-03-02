@@ -47,7 +47,7 @@ class UserContextService:
         user_chat_history = MessageContextChatHistory(
             name=self.USER_CHAT_HISTORY_NAME,
             description=self.USER_CHAT_HISTORY_DESCRIPTION,
-            messages=chat_history.history,
+            messages=chat_history.history[:], # Clone to prevent duplication of new message
         )
         self._update_history(chat_history, new_message)
         session.commit()
