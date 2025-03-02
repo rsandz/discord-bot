@@ -4,7 +4,7 @@ import asyncio
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from langchain_openai import ChatOpenAI
-from uuid import uuid4   
+from uuid import uuid4
 
 from hangoutsscheduler.integrations.cli import CliIntegration
 from hangoutsscheduler.integrations.discord_integration import DiscordIntegration
@@ -16,7 +16,10 @@ from hangoutsscheduler.tools.tool_provider import ToolProvider
 from hangoutsscheduler.utils.logging.metrics import MetricsLogger
 from hangoutsscheduler.utils.validator import MessageValidator
 from hangoutsscheduler.utils.logging.logging_config import setup_logging
-from hangoutsscheduler.utils.logging.request_id_filter import RequestIdContextManager, RequestIdFilter
+from hangoutsscheduler.utils.logging.request_id_filter import (
+    RequestIdContextManager,
+    RequestIdFilter,
+)
 
 DATABASE_URL = "sqlite:///data/hangouts.db"
 BEAR_LAWYER_PROMPT = """
@@ -44,6 +47,7 @@ You were once a highly respected lawyer in the bustling metropolis of... *checks
 
 logger = logging.getLogger("hangoutsscheduler.main")
 
+
 def init_services(engine, metrics_logger) -> tuple:
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     user_context_service = UserContextService()
@@ -54,26 +58,40 @@ def init_services(engine, metrics_logger) -> tuple:
     tool_provider = ToolProvider()
 
     llm_service = LlmService(llm, tool_provider, metrics_logger, BEAR_LAWYER_PROMPT)
-    alarm_service = AlarmService(SessionLocal, llm_service, MetricsLogger(metrics_sublogger="alarm_service"))
+    alarm_service = AlarmService(
+        SessionLocal, llm_service, MetricsLogger(metrics_sublogger="alarm_service")
+    )
     return SessionLocal, user_context_service, llm_service, alarm_service, tool_provider
+
 
 def parse_arguments():
     import argparse
-    parser = argparse.ArgumentParser(description='Hangouts Scheduler')
-    parser.add_argument('-v', action=argparse.BooleanOptionalAction, help='Verbose mode', default=False)
-    parser.add_argument('--discord', action=argparse.BooleanOptionalAction, help='Enable Discord integration', default=False)
-    parser.add_argument('--discord-token', help='Discord bot token for integration', type=str)
+
+    parser = argparse.ArgumentParser(description="Hangouts Scheduler")
+    parser.add_argument(
+        "-v", action=argparse.BooleanOptionalAction, help="Verbose mode", default=False
+    )
+    parser.add_argument(
+        "--discord",
+        action=argparse.BooleanOptionalAction,
+        help="Enable Discord integration",
+        default=False,
+    )
+    parser.add_argument(
+        "--discord-token", help="Discord bot token for integration", type=str
+    )
     args = parser.parse_args()
     return args
 
+
 def setup_database():
     """Initialize the database and create necessary directories.
-    
+
     Returns:
         SQLAlchemy engine instance
     """
     # Ensure data directory exists
-    data_dir = os.path.dirname(DATABASE_URL.replace('sqlite:///', ''))
+    data_dir = os.path.dirname(DATABASE_URL.replace("sqlite:///", ""))
     if not os.path.exists(data_dir):
         os.makedirs(data_dir)
         logger.info(f"Created data directory at {data_dir}")
@@ -82,8 +100,9 @@ def setup_database():
     engine = create_engine(DATABASE_URL)
     Base.metadata.create_all(engine)
     logger.info("Database initialized successfully")
-    
+
     return engine
+
 
 async def main():
     args = parse_arguments()
@@ -93,8 +112,10 @@ async def main():
     setup_logging(args.v, request_id_filter)
 
     engine = setup_database()
-    
-    SessionLocal, user_context_service, llm_service, alarm_service, tool_provider = init_services(engine, metrics_logger)
+
+    SessionLocal, user_context_service, llm_service, alarm_service, tool_provider = (
+        init_services(engine, metrics_logger)
+    )
     message_validator = MessageValidator(max_tokens=50)
 
     # Create tasks list for asyncio.gather
@@ -111,10 +132,14 @@ async def main():
             metrics_logger=metrics_logger,
             request_id_context_manager=request_id_context_manager,
         )
-        tool_provider.messaging_tools.add_message_listener(discord_integration.on_notify_all)
+        tool_provider.messaging_tools.add_message_listener(
+            discord_integration.on_notify_all
+        )
 
         # Use discord_token if provided, otherwise fall back to environment variable
-        token = args.discord_token if args.discord_token else os.environ["DISCORD_TOKEN"]
+        token = (
+            args.discord_token if args.discord_token else os.environ["DISCORD_TOKEN"]
+        )
         tasks.append(asyncio.create_task(discord_integration.start_bot(token)))
     else:
         # Initialize CLI integration
@@ -147,9 +172,9 @@ async def main():
             pass
         logger.info("Services shut down successfully")
 
+
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
         logger.info("Application terminated by user")
-

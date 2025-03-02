@@ -14,4 +14,4 @@ class Attendee(Base):
         ForeignKey("event.id", ondelete="CASCADE"), primary_key=True, init=False
     )
 
-    event: Mapped["Event"] = relationship(back_populates="attendees", default=None) # type: ignore
+    event: Mapped["Event"] = relationship(back_populates="attendees", default=None)  # type: ignore

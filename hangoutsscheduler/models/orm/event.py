@@ -5,6 +5,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from hangoutsscheduler.models.orm import Base
 
+
 class Event(Base):
     """Represents a calendar event."""
 
@@ -14,7 +15,9 @@ class Event(Base):
     title: Mapped[str] = mapped_column(index=True)
     start_time: Mapped[datetime]
     end_time: Mapped[datetime]
-    alarm_id: Mapped[int] = mapped_column(ForeignKey("alarm.alarm_id"), init=False, nullable=True)
+    alarm_id: Mapped[int] = mapped_column(
+        ForeignKey("alarm.alarm_id"), init=False, nullable=True
+    )
 
-    alarm: Mapped["Alarm"] = relationship(default=None) # type: ignore
-    attendees: Mapped[List["Attendee"]] = relationship(back_populates="event", default_factory=list) # type: ignore
+    alarm: Mapped["Alarm"] = relationship(default=None)  # type: ignore
+    attendees: Mapped[List["Attendee"]] = relationship(back_populates="event", default_factory=list)  # type: ignore

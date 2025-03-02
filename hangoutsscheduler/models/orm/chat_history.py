@@ -6,6 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from hangoutsscheduler.models.orm.base import Base
 from hangoutsscheduler.models.message_context import ChatMessage
 
+
 class ChatHistory(Base):
     __tablename__ = "chat_history"
 
@@ -20,7 +21,7 @@ class ChatHistory(Base):
     def history(self) -> List[ChatMessage]:
         if not self._history:
             return []
-        
+
         # Deserialize JSON to list of dictionaries, then convert to ChatMessage objects
         history_dicts = json.loads(self._history)
         return [ChatMessage.from_dict(item) for item in history_dicts]

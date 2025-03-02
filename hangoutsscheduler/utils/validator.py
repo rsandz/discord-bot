@@ -2,6 +2,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class MessageValidator:
     """Validator for messages."""
 
@@ -14,6 +15,8 @@ class MessageValidator:
     def validate_token_count(self, message: str) -> str:
         tokens = message.split()
         if len(tokens) > self.max_tokens:
-            logger.info(f"Message exceeds the maximum allowed tokens ({self.max_tokens}). Truncating message.")
-            return ' '.join(tokens[:self.max_tokens])
+            logger.info(
+                f"Message exceeds the maximum allowed tokens ({self.max_tokens}). Truncating message."
+            )
+            return " ".join(tokens[: self.max_tokens])
         return message
