@@ -72,7 +72,6 @@ class DiscordIntegration(discord.Client):
         if message.author == self.user:
             return
 
-        # Always respond to mentions
         is_mention = message.mentions and self.user in message.mentions
 
         # For non-mentions, check if it's a question and if there was a recent interaction
@@ -106,25 +105,29 @@ class DiscordIntegration(discord.Client):
         )
 
         server_name = message.guild.name if message.guild else None
+        user_name = message.author.display_name
 
         server_channel_context_prompt_transformer = (
             self._create_server_channel_context_transformer(channel_name, server_name)
         )
 
-        # Remove the mention from the message if present
+        user_name_context_prompt_transformer = (
+            self._create_user_name_context_transformer(
+                user_name, user_id=str(message.author.id)
+            )
+        )
+
         content = message.content.replace(f"<@{self.user.id}>", "").strip()
         if not content:
             return
 
         try:
-            # Show typing indicator while processing
             async with message.channel.typing():
                 with (
                     self.session_factory() as session,
                     self.metrics_logger,
                     self.request_id_context_manager,
                 ):
-                    # Get user-specific context
                     user_id = str(message.author.id)
                     validated_message = self.validator.validate_message(content)
                     new_chat_message = ChatMessage(
@@ -138,12 +141,12 @@ class DiscordIntegration(discord.Client):
                     )
                     message_context.histories.append(transformed_channel_history)
 
-                    # Get LLM response
                     response = await self.llm_service.respond_to_user_message(
                         message_context,
                         session,
                         additional_transformers=[
-                            server_channel_context_prompt_transformer
+                            server_channel_context_prompt_transformer,
+                            user_name_context_prompt_transformer,
                         ],
                     )
                     response_content = str(response.content)
@@ -154,7 +157,6 @@ class DiscordIntegration(discord.Client):
                         id=str(message.id),
                     )
 
-                    # Update context with response
                     self.user_context_service.update_with_llm_response(
                         session, user_id, new_ai_response
                     )
@@ -242,16 +244,32 @@ class DiscordIntegration(discord.Client):
         Returns:
             True if there was a recent interaction, False otherwise
         """
-        # Get recent message history
         async for prev_msg in message.channel.history(limit=10, before=message):
-            # Check if the bot responded to this user within the last 60 seconds
             if (
                 prev_msg.author == self.user
                 and (message.created_at - prev_msg.created_at).total_seconds() < 60
             ):
-                # Find the message the bot was responding to
                 async for user_msg in message.channel.history(limit=5, before=prev_msg):
                     if user_msg.author == message.author:
                         return True
 
         return False
+
+    def _create_user_name_context_transformer(
+        self, user_name: str, user_id: str
+    ) -> UserPromptTransformer:
+        """Create a prompt transformer that adds the user's name to the context.
+
+        Args:
+            user_name: The display name of the user
+            user_id: The ID of the user
+
+        Returns:
+            A transformer function that adds user name context to the prompt
+        """
+        return lambda prompt: [
+            SystemMessage(
+                f"You are talking to Discord user: {user_name} (ID: {user_id})"
+            ),
+            *prompt,
+        ]
