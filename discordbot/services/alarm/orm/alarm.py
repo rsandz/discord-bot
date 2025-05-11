@@ -2,7 +2,7 @@ from sqlalchemy import Integer, DateTime, String
 from datetime import datetime
 from sqlalchemy.orm import Mapped, mapped_column
 
-from hangoutsscheduler.models.orm.base import Base
+from discordbot.models.orm.base import Base
 
 
 class Alarm(Base):

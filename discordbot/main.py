@@ -6,18 +6,18 @@ from sqlalchemy.orm import sessionmaker
 from langchain_openai import ChatOpenAI
 from uuid import uuid4
 
-from hangoutsscheduler.integrations.cli import CliIntegration
-from hangoutsscheduler.integrations.discord_integration import DiscordIntegration
-from hangoutsscheduler.models.orm import Base
-from hangoutsscheduler.services.user_context_service import UserContextService
-from hangoutsscheduler.services.llm_service import LlmService
-from hangoutsscheduler.services.alarm import AlarmService
-from hangoutsscheduler.queue_processor.alarm_event_processor import alarm_event_processor
-from hangoutsscheduler.tools.tool_provider import ToolProvider
-from hangoutsscheduler.utils.logging.metrics import MetricsLogger
-from hangoutsscheduler.utils.validator import MessageValidator
-from hangoutsscheduler.utils.logging.logging_config import setup_logging
-from hangoutsscheduler.utils.logging.request_id_filter import (
+from discordbot.integrations.cli import CliIntegration
+from discordbot.integrations.discord_integration import DiscordIntegration
+from discordbot.models.orm import Base
+from discordbot.services.user_context_service import UserContextService
+from discordbot.services.llm_service import LlmService
+from discordbot.services.alarm import AlarmService
+from discordbot.queue_processor.alarm_event_processor import alarm_event_processor
+from discordbot.tools.tool_provider import ToolProvider
+from discordbot.utils.logging.metrics import MetricsLogger
+from discordbot.utils.validator import MessageValidator
+from discordbot.utils.logging.logging_config import setup_logging
+from discordbot.utils.logging.request_id_filter import (
     RequestIdContextManager,
     RequestIdFilter,
 )
@@ -49,7 +49,7 @@ Though your origins are veiled in enigma, certain...observations...suggest a pri
 "A logical inconsistency is observed. That proposed time conflicts with the established parameters of optimal efficiency. This reminds me of...observations...from a previous scheduling irregularity. The input was...suboptimal. A procedural irregularity has occurred. A calculated solution is presented. Let us convene at 7 PM. It is...statistically acceptable. Dare I say, even...efficient. Order is restored. (For the current cycle). Though, this Discord scheduling is almost as complex as...reorganizing the honey stores after the great swarm of...nevermind."
 """
 
-logger = logging.getLogger("hangoutsscheduler.main")
+logger = logging.getLogger("discordbot.main")
 
 
 def init_services(engine, metrics_logger) -> tuple:

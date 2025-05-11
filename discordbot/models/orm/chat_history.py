@@ -3,8 +3,8 @@ from typing import List
 from sqlalchemy import ARRAY, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from hangoutsscheduler.models.orm.base import Base
-from hangoutsscheduler.models.message_context import ChatMessage
+from discordbot.models.orm.base import Base
+from discordbot.models.message_context import ChatMessage
 
 
 class ChatHistory(Base):

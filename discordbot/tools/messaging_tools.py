@@ -3,7 +3,7 @@ import asyncio
 from typing import Callable, List, Union, Awaitable
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-from hangoutsscheduler.utils.logging.metrics import MetricsLogger
+from discordbot.utils.logging.metrics import MetricsLogger
 
 logger = logging.getLogger(__name__)
 

@@ -3,10 +3,10 @@ from sqlalchemy.orm import Session
 from langchain.tools import BaseTool, StructuredTool
 from pydantic import BaseModel, Field
 
-from hangoutsscheduler.tools.messaging_tools import MessagingTools, NotifyAllUsersInput
-from hangoutsscheduler.utils.logging.metrics import MetricsLogger
-from hangoutsscheduler.services.alarm import AlarmService
-from hangoutsscheduler.services.alarm import (
+from discordbot.tools.messaging_tools import MessagingTools, NotifyAllUsersInput
+from discordbot.utils.logging.metrics import MetricsLogger
+from discordbot.services.alarm import AlarmService
+from discordbot.services.alarm import (
     AlarmToolAdapter,
     CreateAlarmInput,
     UpdateAlarmInput,

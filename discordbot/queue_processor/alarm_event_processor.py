@@ -2,8 +2,8 @@ import logging
 import asyncio
 from typing import Callable
 from sqlalchemy.orm import Session
-from hangoutsscheduler.models.event_context import EventContext
-from hangoutsscheduler.services.llm_service import LlmService
+from discordbot.models.event_context import EventContext
+from discordbot.services.llm_service import LlmService
 
 logger = logging.getLogger(__name__)
 

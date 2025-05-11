@@ -10,11 +10,11 @@ from langgraph.prebuilt import create_react_agent
 
 from sqlalchemy.orm import Session
 
-from hangoutsscheduler.constants import USER_MESSAGE_TYPE, AI_MESSAGE_TYPE
-from hangoutsscheduler.models.event_context import EventContext
-from hangoutsscheduler.models.message_context import ChatMessage, MessageContext
-from hangoutsscheduler.utils.logging.metrics import Instrumenter, MetricsLogger
-from hangoutsscheduler.tools.tool_provider import ToolProvider
+from discordbot.constants import USER_MESSAGE_TYPE, AI_MESSAGE_TYPE
+from discordbot.models.event_context import EventContext
+from discordbot.models.message_context import ChatMessage, MessageContext
+from discordbot.utils.logging.metrics import Instrumenter, MetricsLogger
+from discordbot.tools.tool_provider import ToolProvider
 
 logger = logging.getLogger(__name__)
 

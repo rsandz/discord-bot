@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 from datetime import datetime
 
-from hangoutsscheduler.services.alarm.orm import Alarm
-from hangoutsscheduler.utils.logging.metrics import MetricsLogger
+from discordbot.services.alarm.orm import Alarm
+from discordbot.utils.logging.metrics import MetricsLogger
 
 import logging
 

@@ -2,17 +2,17 @@ from ast import List
 from typing import cast
 from openai import chat
 from sqlalchemy.orm import Session
-from hangoutsscheduler.constants import (
+from discordbot.constants import (
     USER_MESSAGE_TYPE,
     SYSTEM_MESSAGE_TYPE,
     AI_MESSAGE_TYPE,
 )
 
-from hangoutsscheduler.models.message_context import (
+from discordbot.models.message_context import (
     MessageContext,
     MessageContextChatHistory,
 )
-from hangoutsscheduler.models.orm.chat_history import ChatHistory, ChatMessage
+from discordbot.models.orm.chat_history import ChatHistory, ChatMessage
 
 import logging
 

@@ -36,10 +36,10 @@ class MetricsLogger:
 
         if metrics_sublogger:
             self.logger = logging.getLogger(
-                "hangoutsscheduler.metrics." + metrics_sublogger
+                "discordbot.metrics." + metrics_sublogger
             )
         else:
-            self.logger = logging.getLogger("hangoutsscheduler.metrics")
+            self.logger = logging.getLogger("discordbot.metrics")
         self.logger.setLevel(logging.INFO)
 
         # Set up file handler

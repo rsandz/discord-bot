@@ -4,9 +4,9 @@ import asyncio
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
-from hangoutsscheduler.models.event_context import EventContext
-from hangoutsscheduler.services.alarm.orm import Alarm
-from hangoutsscheduler.utils.logging.metrics import MetricsLogger
+from discordbot.models.event_context import EventContext
+from discordbot.services.alarm.orm import Alarm
+from discordbot.utils.logging.metrics import MetricsLogger
 
 logger = logging.getLogger(__name__)
 

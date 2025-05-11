@@ -1,5 +1,5 @@
 import unittest
-from hangoutsscheduler.utils.validator import MessageValidator
+from discordbot.utils.validator import MessageValidator
 
 class TestMessageValidator(unittest.TestCase):
 

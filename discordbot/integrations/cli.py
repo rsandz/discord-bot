@@ -6,13 +6,13 @@ import uuid
 
 from sqlalchemy.orm import Session
 
-from hangoutsscheduler.constants import AI_MESSAGE_TYPE, USER_MESSAGE_TYPE
-from hangoutsscheduler.models.message_context import ChatMessage
-from hangoutsscheduler.services.llm_service import LlmService
-from hangoutsscheduler.services.user_context_service import UserContextService
-from hangoutsscheduler.utils.logging.metrics import MetricsLogger
-from hangoutsscheduler.utils.logging.request_id_filter import RequestIdContextManager
-from hangoutsscheduler.utils.validator import MessageValidator
+from discordbot.constants import AI_MESSAGE_TYPE, USER_MESSAGE_TYPE
+from discordbot.models.message_context import ChatMessage
+from discordbot.services.llm_service import LlmService
+from discordbot.services.user_context_service import UserContextService
+from discordbot.utils.logging.metrics import MetricsLogger
+from discordbot.utils.logging.request_id_filter import RequestIdContextManager
+from discordbot.utils.validator import MessageValidator
 
 logger = logging.getLogger(__name__)
 
