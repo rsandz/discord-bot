@@ -107,6 +107,8 @@ async def main():
     )
     tasks = [alarm_service_task, alarm_event_processor_task]
 
+    logger.info("Service Startup complete. Starting integration.")
+
     if args.discord:
         # Initialize Discord integration
         discord_integration = DiscordIntegration(

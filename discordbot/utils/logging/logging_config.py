@@ -35,7 +35,7 @@ def setup_langchain_logging():
 
 
 def setup_application_logging(is_verbose: bool, request_id_filter: RequestIdFilter):
-    logger = logging.getLogger("hangoutsscheduler")
+    logger = logging.getLogger("discordbot")
 
     if is_verbose:
         logger.setLevel(logging.DEBUG)
