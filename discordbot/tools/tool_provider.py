@@ -1,7 +1,8 @@
-from typing import List, Optional
+from contextlib import AsyncExitStack
+from typing import List
 from sqlalchemy.orm import Session
 from langchain.tools import BaseTool, StructuredTool
-from pydantic import BaseModel, Field
+from langchain_mcp_adapters.client import MultiServerMCPClient
 
 from discordbot.tools.messaging_tools import MessagingTools, NotifyAllUsersInput
 from discordbot.utils.logging.metrics import MetricsLogger
@@ -18,9 +19,10 @@ from discordbot.services.alarm import (
 class ToolProvider:
     """Provides tools for interacting with the database"""
 
-    def __init__(self, alarm_service: AlarmService):
+    def __init__(self, alarm_service: AlarmService, mcp_config: dict):
         self.alarm_tools = AlarmToolAdapter(alarm_service)
         self.messaging_tools = MessagingTools()
+        self.mcp_config = mcp_config
 
     def get_system_tools(
         self, session: Session, metrics_logger: MetricsLogger
@@ -37,10 +39,15 @@ class ToolProvider:
             )
         ]
 
-    def get_tools(
-        self, session: Session, metrics_logger: MetricsLogger
+    async def get_tools(
+        self, session: Session, metrics_logger: MetricsLogger, exit_stack: AsyncExitStack
     ) -> List[BaseTool]:
-        return [
+        tools = []
+
+        mcp_client = await exit_stack.enter_async_context(MultiServerMCPClient(self.mcp_config))
+        tools.extend(mcp_client.get_tools())
+
+        tools.extend([
             StructuredTool(
                 name="create_alarm",
                 description="Create a new alarm with trigger time and description",
@@ -73,4 +80,5 @@ class ToolProvider:
                     session, metrics_logger, **kwargs
                 ),
             ),
-        ]
+        ])
+        return tools

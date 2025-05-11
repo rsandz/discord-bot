@@ -40,7 +40,7 @@ def init_services(engine, metrics_logger) -> tuple:
         SessionLocal, MetricsLogger(metrics_sublogger="alarm_service")
     )
 
-    tool_provider = ToolProvider(alarm_service)
+    tool_provider = ToolProvider(alarm_service, config.mcp)
     llm_service = LlmService(llm, tool_provider, metrics_logger, MAIN_CHAT_PROMPT)
     return SessionLocal, user_context_service, llm_service, alarm_service, tool_provider
 

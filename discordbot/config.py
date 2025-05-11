@@ -12,10 +12,12 @@ class Config:
         else:
             config_path = Path(__file__).parent.parent / "config.yaml"
         data = yaml.safe_load(config_path.read_text()) or {}
+
         prompts = data.get("prompts", {})
         self.user_message_base: str = prompts.get("user_message_base", "")
         self.system_event: str = prompts.get("system_event", "")
 
+        self.mcp = data.get("mcp", {})
 
 # Singleton config instance
 def default_config(path: Optional[str] = None) -> Config:

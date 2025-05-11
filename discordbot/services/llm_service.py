@@ -1,3 +1,4 @@
+from contextlib import AsyncExitStack
 import logging
 from datetime import datetime
 import datetime as dt
@@ -89,8 +90,9 @@ class LlmService:
             ):
                 prompt = transformer(prompt)
 
-            tools = self.tool_provider.get_tools(session, self.metrics_logger)
-            last_message = await self._invoke_llm(instrumenter, session, prompt, tools)
+            async with AsyncExitStack() as exit_stack:
+                tools = await self.tool_provider.get_tools(session, self.metrics_logger, exit_stack)
+                last_message = await self._invoke_llm(instrumenter, session, prompt, tools)
             return last_message
 
     async def _invoke_llm(
