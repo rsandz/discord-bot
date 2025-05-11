@@ -9,7 +9,7 @@ RUN pip install poetry
 
 # Copy project files
 COPY pyproject.toml poetry.lock* ./
-COPY hangoutsscheduler/ ./hangoutsscheduler/
+COPY discordbot/ ./discordbot/
 COPY README.md ./
 
 # Install dependencies
