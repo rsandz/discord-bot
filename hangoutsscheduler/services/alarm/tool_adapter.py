@@ -11,7 +11,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Constants
-ISO_FORMAT = "yyyy-MM-ddTHH:mm:ss±hh:mm (or Z for UTC)"
+ISO_FORMAT = "YYYY-MM-DDTHH:MM:SS±HH:MM"
 
 
 class CreateAlarmInput(BaseModel):
@@ -57,6 +57,7 @@ class DeleteAlarmInput(BaseModel):
 
 
 class ListAlarmsInput(BaseModel):
+    user_id: str = Field(..., description="ID of the user to list alarms for")
     include_past: bool = Field(
         default=False, description="Whether to include past alarms in the list"
     )
@@ -64,6 +65,9 @@ class ListAlarmsInput(BaseModel):
 
 class AlarmToolAdapter:
     """Adapter for LLM to interact with alarms."""
+
+    def __init__(self, alarm_service):
+        self.alarm_service = alarm_service
 
     def create_alarm(
         self,
@@ -75,34 +79,17 @@ class AlarmToolAdapter:
         channel_id: str,
     ) -> str:
         with metrics_logger.instrumenter("AlarmToolAdapter.create_alarm"):
-            try:
-                alarm_time = datetime.fromisoformat(trigger_time)
-                alarm = Alarm(trigger_time=alarm_time, description=description, user_id=user_id, channel_id=channel_id)
-                session.add(alarm)
-                logger.info(f"Created alarm ID {alarm.alarm_id}")
-                return f"Alarm created with ID {alarm.alarm_id}"
-            except ValueError as e:
-                logger.error(f"Failed to parse trigger time: {e}")
-                return f"Failed to create alarm: Invalid time format. Use ISO format {ISO_FORMAT}"
+            return self.alarm_service.create_alarm(session, trigger_time, description, user_id, channel_id)
 
     def list_alarms(
         self,
         session: Session,
-        user_id: str,
         metrics_logger: MetricsLogger,
+        user_id: str,
         include_past: bool = False,
     ) -> str:
         with metrics_logger.instrumenter("AlarmToolAdapter.list_alarms"):
-            query = session.query(Alarm).filter(Alarm.user_id == user_id)
-            if not include_past:
-                query = query.filter(Alarm.trigger_time > datetime.now())
-            alarms = query.order_by(Alarm.trigger_time).all()
-
-            if not alarms:
-                return "No alarms found"
-
-            logger.info(f"Listed {len(alarms)} alarms")
-            return "\n".join(str(alarm) for alarm in alarms)
+            return self.alarm_service.list_alarms(session, user_id, include_past)
 
     def update_alarm(
         self,
@@ -113,32 +100,10 @@ class AlarmToolAdapter:
         description: Optional[str] = None,
     ) -> str:
         with metrics_logger.instrumenter("AlarmToolAdapter.update_alarm"):
-            alarm = session.get(Alarm, alarm_id)
-            if not alarm:
-                logger.warning(f"Attempted to update non-existent alarm {alarm_id}")
-                return f"Alarm {alarm_id} not found"
-
-            try:
-                if trigger_time:
-                    alarm.trigger_time = datetime.fromisoformat(trigger_time)
-                if description:
-                    alarm.description = description
-
-                logger.info(f"Updated alarm ID {alarm_id}")
-                return f"Alarm {alarm_id} updated successfully"
-            except ValueError as e:
-                logger.error(f"Failed to update alarm: {e}")
-                return f"Failed to update alarm: Invalid time format. Use ISO format {ISO_FORMAT}"
+            return self.alarm_service.update_alarm(session, alarm_id, trigger_time, description)
 
     def delete_alarm(
         self, session: Session, metrics_logger: MetricsLogger, alarm_id: int
     ) -> str:
         with metrics_logger.instrumenter("AlarmToolAdapter.delete_alarm"):
-            alarm = session.get(Alarm, alarm_id)
-            if not alarm:
-                logger.warning(f"Attempted to delete non-existent alarm {alarm_id}")
-                return f"Alarm {alarm_id} not found"
-
-            session.delete(alarm)
-            logger.info(f"Deleted alarm ID {alarm_id}")
-            return f"Alarm {alarm_id} deleted successfully" 
+            return self.alarm_service.delete_alarm(session, alarm_id)

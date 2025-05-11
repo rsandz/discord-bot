@@ -59,12 +59,12 @@ def init_services(engine, metrics_logger) -> tuple:
         raise Exception("OPENAI_API_KEY is not set")
     llm = ChatOpenAI(model="gpt-4o-mini")
 
-    tool_provider = ToolProvider()
-
-    llm_service = LlmService(llm, tool_provider, metrics_logger, BEAR_LAWYER_PROMPT)
     alarm_service = AlarmService(
         SessionLocal, MetricsLogger(metrics_sublogger="alarm_service")
     )
+
+    tool_provider = ToolProvider(alarm_service)
+    llm_service = LlmService(llm, tool_provider, metrics_logger, BEAR_LAWYER_PROMPT)
     return SessionLocal, user_context_service, llm_service, alarm_service, tool_provider
 
 

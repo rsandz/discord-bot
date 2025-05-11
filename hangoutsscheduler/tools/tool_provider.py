@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 from hangoutsscheduler.tools.messaging_tools import MessagingTools, NotifyAllUsersInput
 from hangoutsscheduler.utils.logging.metrics import MetricsLogger
+from hangoutsscheduler.services.alarm import AlarmService
 from hangoutsscheduler.services.alarm import (
     AlarmToolAdapter,
     CreateAlarmInput,
@@ -17,8 +18,8 @@ from hangoutsscheduler.services.alarm import (
 class ToolProvider:
     """Provides tools for interacting with the database"""
 
-    def __init__(self):
-        self.alarm_tools = AlarmToolAdapter()
+    def __init__(self, alarm_service: AlarmService):
+        self.alarm_tools = AlarmToolAdapter(alarm_service)
         self.messaging_tools = MessagingTools()
 
     def get_system_tools(

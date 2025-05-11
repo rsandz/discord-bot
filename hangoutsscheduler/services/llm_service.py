@@ -74,7 +74,7 @@ class LlmService:
             logger.info(f"Responding to message: {message}")
 
             prompt: Sequence[BaseMessage] = [
-                SystemMessage(f"Current User: {message_context.username}"),
+                SystemMessage(f"Current User ID: {message_context.username}"),
                 SystemMessage(
                     f"Current Time: {datetime.now().astimezone().isoformat()}"
                 ),
