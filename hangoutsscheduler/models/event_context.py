@@ -7,4 +7,4 @@ class EventContext:
 
     event_source: str
     event_description: str
-    additional_data: dict = field(default_factory=dict)
+    additional_data: dict = field(default_factory=dict) 

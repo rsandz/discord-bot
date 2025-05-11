@@ -11,7 +11,8 @@ from hangoutsscheduler.integrations.discord_integration import DiscordIntegratio
 from hangoutsscheduler.models.orm import Base
 from hangoutsscheduler.services.user_context_service import UserContextService
 from hangoutsscheduler.services.llm_service import LlmService
-from hangoutsscheduler.services.alarm_service import AlarmService
+from hangoutsscheduler.services.alarm import AlarmService
+from hangoutsscheduler.queue_processor.alarm_event_processor import alarm_event_processor
 from hangoutsscheduler.tools.tool_provider import ToolProvider
 from hangoutsscheduler.utils.logging.metrics import MetricsLogger
 from hangoutsscheduler.utils.validator import MessageValidator
@@ -62,7 +63,7 @@ def init_services(engine, metrics_logger) -> tuple:
 
     llm_service = LlmService(llm, tool_provider, metrics_logger, BEAR_LAWYER_PROMPT)
     alarm_service = AlarmService(
-        SessionLocal, llm_service, MetricsLogger(metrics_sublogger="alarm_service")
+        SessionLocal, MetricsLogger(metrics_sublogger="alarm_service")
     )
     return SessionLocal, user_context_service, llm_service, alarm_service, tool_provider
 
@@ -123,7 +124,11 @@ async def main():
 
     # Create tasks list for asyncio.gather
     alarm_service_task = asyncio.create_task(alarm_service.start())
-    tasks = [alarm_service_task]
+    # Start the alarm event processor
+    alarm_event_processor_task = asyncio.create_task(
+        alarm_event_processor(alarm_service.event_queue, llm_service, SessionLocal)
+    )
+    tasks = [alarm_service_task, alarm_event_processor_task]
 
     if args.discord:
         # Initialize Discord integration
@@ -154,6 +159,9 @@ async def main():
             metrics_logger=metrics_logger,
             request_id_context_manager=request_id_context_manager,
             user_name="User",
+        )
+        tool_provider.messaging_tools.add_message_listener(
+            lambda message: print("\nCLI: ", message)
         )
         tasks.append(asyncio.create_task(cli_integration.start()))
 

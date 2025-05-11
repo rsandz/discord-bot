@@ -5,21 +5,25 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 
 from hangoutsscheduler.models.event_context import EventContext
-from hangoutsscheduler.models.orm.alarm import Alarm
-from hangoutsscheduler.services.llm_service import LlmService
+from hangoutsscheduler.services.alarm.orm import Alarm
 from hangoutsscheduler.utils.logging.metrics import MetricsLogger
 
 logger = logging.getLogger(__name__)
 
+# Constants
+CHECK_INTERVAL = 60  # Check every minute
+
 
 class AlarmService:
+    """Service for managing and processing alarms."""
+
     def __init__(
-        self, session_factory, llm_service: LlmService, metrics_logger: MetricsLogger
+        self, session_factory, metrics_logger: MetricsLogger
     ):
         self.session_factory = session_factory
-        self.llm_service = llm_service
         self.metrics_logger = metrics_logger
-        self.check_interval = 60  # Check every minute
+        self.check_interval = CHECK_INTERVAL
+        self.event_queue = asyncio.Queue()
 
     async def start(self):
         """Start the alarm checking loop"""
@@ -88,13 +92,10 @@ class AlarmService:
                     additional_data={"alarm_id": alarm.alarm_id},
                 )
 
-                response = await self.llm_service.respond_to_system_event(
-                    event_context, session
-                )
-
-                logger.info(f"LLM processed alarm {alarm.alarm_id}: {response}")
+                self.event_queue.put_nowait(event_context)
+                logger.info(f"Alarm {alarm.alarm_id} processed and added to queue")
 
                 session.delete(alarm)
 
             except Exception as e:
-                logger.exception(f"Error processing alarm {alarm.alarm_id}: {e}")
+                logger.exception(f"Error processing alarm {alarm.alarm_id}: {e}") 

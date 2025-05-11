@@ -3,17 +3,10 @@ from sqlalchemy.orm import Session
 from langchain.tools import BaseTool, StructuredTool
 from pydantic import BaseModel, Field
 
-from hangoutsscheduler.models.orm.event import Event
 from hangoutsscheduler.tools.messaging_tools import MessagingTools, NotifyAllUsersInput
 from hangoutsscheduler.utils.logging.metrics import MetricsLogger
-from hangoutsscheduler.tools.event_tools import (
-    CreateEventInput,
-    SearchEventsInput,
-    ListEventsInput,
-    EventTools,
-)
-from hangoutsscheduler.tools.alarm_tools import (
-    AlarmTools,
+from hangoutsscheduler.services.alarm import (
+    AlarmToolAdapter,
     CreateAlarmInput,
     UpdateAlarmInput,
     DeleteAlarmInput,
@@ -25,8 +18,7 @@ class ToolProvider:
     """Provides tools for interacting with the database"""
 
     def __init__(self):
-        self.event_tools = EventTools()
-        self.alarm_tools = AlarmTools()
+        self.alarm_tools = AlarmToolAdapter()
         self.messaging_tools = MessagingTools()
 
     def get_system_tools(
@@ -48,30 +40,6 @@ class ToolProvider:
         self, session: Session, metrics_logger: MetricsLogger
     ) -> List[BaseTool]:
         return [
-            StructuredTool(
-                name="create_event",
-                description="Create a new event with title, start time, and end time. An event also creates an alarm as a reminder automatically.",
-                args_schema=CreateEventInput,
-                func=lambda **kwargs: self.event_tools.create_event(
-                    session, metrics_logger, **kwargs
-                ),
-            ),
-            StructuredTool(
-                name="search_events",
-                description="Search for events by title",
-                args_schema=SearchEventsInput,
-                func=lambda **kwargs: self.event_tools.search_events_by_title(
-                    session, metrics_logger, **kwargs
-                ),
-            ),
-            StructuredTool(
-                name="list_events",
-                description="List events with pagination. Use page parameter to navigate through pages",
-                args_schema=ListEventsInput,
-                func=lambda **kwargs: self.event_tools.list_events(
-                    session, metrics_logger, **kwargs
-                ),
-            ),
             StructuredTool(
                 name="create_alarm",
                 description="Create a new alarm with trigger time and description",
@@ -98,7 +66,7 @@ class ToolProvider:
             ),
             StructuredTool(
                 name="list_alarms",
-                description="List all alarms, optionally including past alarms",
+                description="List all alarms",
                 args_schema=ListAlarmsInput,
                 func=lambda **kwargs: self.alarm_tools.list_alarms(
                     session, metrics_logger, **kwargs
