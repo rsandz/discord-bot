@@ -10,6 +10,7 @@ RUN pip install poetry
 # Copy project files
 COPY pyproject.toml poetry.lock* ./
 COPY discordbot/ ./discordbot/
+COPY config.yaml ./
 COPY README.md ./
 
 # Install dependencies
