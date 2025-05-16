@@ -4,12 +4,11 @@ import asyncio
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from langchain_openai import ChatOpenAI
-from uuid import uuid4
 
 from discordbot.integrations.cli import CliIntegration
-from discordbot.integrations.discord_integration import DiscordIntegration
+# from discordbot.integrations.discord_integration import DiscordIntegration
 from discordbot.models.orm import Base
-from discordbot.services.user_context_service import UserContextService
+from discordbot.services.user_context.user_context_service import UserContextService
 from discordbot.services.llm_service import LlmService
 from discordbot.services.alarm import AlarmService
 from discordbot.queue_processor.alarm_event_processor import alarm_event_processor
@@ -21,6 +20,7 @@ from discordbot.utils.logging.request_id_filter import (
     RequestIdContextManager,
     RequestIdFilter,
 )
+from discordbot.orchestrator import Orchestrator
 from discordbot.config import config
 
 DATABASE_URL = "sqlite:///data/hangouts.db"
@@ -31,18 +31,26 @@ logger = logging.getLogger("discordbot.main")
 
 def init_services(engine, metrics_logger) -> tuple:
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    user_context_service = UserContextService()
     if not os.environ.get("OPENAI_API_KEY"):
         raise Exception("OPENAI_API_KEY is not set")
     llm = ChatOpenAI(model="gpt-4o-mini")
 
     alarm_service = AlarmService(
-        SessionLocal, MetricsLogger(metrics_sublogger="alarm_service")
+        SessionLocal, MetricsLogger(metrics_sublogger="alarm_service") # Alarm needs its own metrics
     )
 
     tool_provider = ToolProvider(alarm_service, config.mcp)
-    llm_service = LlmService(llm, tool_provider, metrics_logger, MAIN_CHAT_PROMPT)
-    return SessionLocal, user_context_service, llm_service, alarm_service, tool_provider
+    llm_service = LlmService(llm, metrics_logger)
+    user_context_service = UserContextService()
+    orchestrator = Orchestrator(
+        session_factory=SessionLocal,
+        llm_service=llm_service,
+        user_context_service=user_context_service,
+        tool_provider=tool_provider,
+        metrics_logger=metrics_logger,
+        config=config
+    )
+    return SessionLocal, user_context_service, llm_service, alarm_service, tool_provider, orchestrator
 
 
 def parse_arguments():
@@ -94,7 +102,7 @@ async def main():
 
     engine = setup_database()
 
-    SessionLocal, user_context_service, llm_service, alarm_service, tool_provider = (
+    SessionLocal, user_context_service, llm_service, alarm_service, tool_provider, orchestrator = (
         init_services(engine, metrics_logger)
     )
     message_validator = MessageValidator(max_tokens=50)
@@ -132,12 +140,11 @@ async def main():
         # Initialize CLI integration
         cli_integration = CliIntegration(
             session_factory=SessionLocal,
-            user_context_service=user_context_service,
-            llm_service=llm_service,
             validator=message_validator,
             metrics_logger=metrics_logger,
             request_id_context_manager=request_id_context_manager,
             user_name="User",
+            orchestrator=orchestrator,
         )
         tool_provider.messaging_tools.add_message_listener(
             lambda message: print("\nCLI: ", message)

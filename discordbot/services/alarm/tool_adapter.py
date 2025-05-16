@@ -59,7 +59,7 @@ class DeleteAlarmInput(BaseModel):
 class ListAlarmsInput(BaseModel):
     user_id: str = Field(..., description="ID of the user to list alarms for")
     include_past: bool = Field(
-        default=False, description="Whether to include past alarms in the list"
+        default=True, description="Whether to include past alarms in the list"
     )
 
 

@@ -106,7 +106,7 @@ class DiscordIntegration(discord.Client):
             )
         )
 
-        content = message.content.replace(f"<@{self.user.id}>", "").strip()
+        content = message.content.replace(f"<@{self.user.id}>", user_name).strip()
         if not content:
             return
 

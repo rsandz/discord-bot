@@ -6,13 +6,12 @@ import uuid
 
 from sqlalchemy.orm import Session
 
-from discordbot.constants import AI_MESSAGE_TYPE, USER_MESSAGE_TYPE
-from discordbot.models.message_context import ChatMessage
-from discordbot.services.llm_service import LlmService
-from discordbot.services.user_context_service import UserContextService
+from discordbot.models.event import UserMessageEvent
+from discordbot.models.message import TimeStampedHumanMessage
 from discordbot.utils.logging.metrics import MetricsLogger
 from discordbot.utils.logging.request_id_filter import RequestIdContextManager
 from discordbot.utils.validator import MessageValidator
+from discordbot.orchestrator import Orchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -23,23 +22,22 @@ class CliIntegration:
     def __init__(
         self,
         session_factory: Callable[[], Session],
-        user_context_service: UserContextService,
-        llm_service: LlmService,
         validator: MessageValidator,
         metrics_logger: MetricsLogger,
         request_id_context_manager: RequestIdContextManager,
         user_name: str,
+        orchestrator: Orchestrator,
     ):
         self.session_factory = session_factory
-        self.user_context_service = user_context_service
-        self.llm_service = llm_service
         self.validator = validator
         self.metrics_logger = metrics_logger
         self.request_id_context_manager = request_id_context_manager
         self.user_name = user_name
+        self.orchestrator = orchestrator
 
     async def start(self):
         logger.info("Starting CLI Integration")
+        history = []
 
         while True:
             try:
@@ -52,28 +50,29 @@ class CliIntegration:
                     self.request_id_context_manager,
                 ):
                     validated_message = self.validator.validate_message(message)
-                    new_message = ChatMessage(
-                        type=USER_MESSAGE_TYPE,
-                        content=validated_message,
-                        datetime=datetime.now(),
-                        id=str(uuid.uuid4()),
+
+                    human_message = TimeStampedHumanMessage(
+                            content=validated_message,
+                            timestamp=datetime.now(),
+                            id=str(uuid.uuid4())
+                        )
+                
+                    user_event = UserMessageEvent(
+                        event_description="User CLI Message",
+                        user_id=self.user_name,
+                        user_name=self.user_name,
+                        channel_id="CLI",
+                        immediate_history=history,
+                        message=human_message,
                     )
-                    message_context = self.user_context_service.resolve_chat_history(
-                        session, self.user_name, new_message
-                    )
-                    response = await self.llm_service.respond_to_user_message(
-                        message_context, session
-                    )
-                    new_ai_message = ChatMessage(
-                        type=AI_MESSAGE_TYPE,
-                        content=str(response.content),
-                        datetime=datetime.now(),
-                        id=str(uuid.uuid4()),
-                    )
-                    self.user_context_service.update_with_llm_response(
-                        session, self.user_name, new_ai_message
-                    )
-                    print("Assistant: " + str(response.content))
+
+                    event_response = await self.orchestrator.handle_user_event(user_event)
+
+                    print("Assistant: " + str(event_response.ai_message.content))
+
+                    history.append(human_message)
+                    history.append(event_response.ai_message)
+
             except Exception as e:
                 logger.exception(f"Error in chat loop: {e}")
                 print("An error occurred: " + str(e))

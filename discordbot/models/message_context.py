@@ -43,9 +43,3 @@ class MessageContextChatHistory:
     description: str = ""
     messages: list[ChatMessage] = field(default_factory=list)
 
-
-@dataclass
-class MessageContext:
-    message: str
-    username: str
-    histories: list[MessageContextChatHistory] = field(default_factory=list)

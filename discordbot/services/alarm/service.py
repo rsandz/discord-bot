@@ -23,7 +23,7 @@ class AlarmService:
         """
         try:
             logger.info(f"Creating alarm for {user_id} at {trigger_time}")
-            alarm_time = datetime.fromisoformat(trigger_time)
+            alarm_time = datetime.fromisoformat(trigger_time.replace("Z", "+00:00"))
             if alarm_time.tzinfo is None:
                 alarm_time = alarm_time.replace(tzinfo=timezone.utc)
             else:
